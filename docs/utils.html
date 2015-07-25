@@ -55,7 +55,8 @@
             <div class="content"><div class='highlight'><pre>
 fs = Npm.<span class="hljs-built_in">require</span> <span class="hljs-string">'fs'</span>
 path = Npm.<span class="hljs-built_in">require</span> <span class="hljs-string">'path'</span>
-sass = Npm.<span class="hljs-built_in">require</span> <span class="hljs-string">'node-sass'</span></pre></div></div>
+
+TAG = <span class="hljs-string">'mailer-utils'</span></pre></div></div>
             
         </li>
         
@@ -73,12 +74,16 @@ touch the HTML and CSS, which are non-JS files.</p>
 deploying Meteor apps, we need to set the BUNDLE_PATH env var
 to keep track of where the bundle lives.</p>
 <p>When deployed, set the BUNDLE_PATH env var to the location, perhaps:
-    /var/www/app/bundle</p>
+    /var/www/app/bundle
+For Modulus, you need to use the APP_DIR variable, which you do NOT need to set</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">if</span> process.env.BUNDLE_PATH
+            <div class="content"><div class='highlight'><pre>
+<span class="hljs-keyword">if</span> process.env.BUNDLE_PATH
   ROOT = path.join(process.env.BUNDLE_PATH, <span class="hljs-string">'programs'</span>, <span class="hljs-string">'server'</span>, <span class="hljs-string">'assets'</span>, <span class="hljs-string">'app'</span>)
+<span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> process.env.APP_DIR
+   ROOT = path.join(process.env.APP_DIR, <span class="hljs-string">'programs'</span>,<span class="hljs-string">'server'</span>, <span class="hljs-string">'assets'</span>, <span class="hljs-string">'app'</span>)
 <span class="hljs-keyword">else</span></pre></div></div>
             
         </li>
@@ -94,7 +99,12 @@ to keep track of where the bundle lives.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  ROOT = path.join(process.env.PWD, <span class="hljs-string">'private'</span>)</pre></div></div>
+            <div class="content"><div class='highlight'><pre>  ROOT = path.join(process.env.PWD, <span class="hljs-string">'private'</span>)
+
+Utils =
+
+  <span class="hljs-attribute">capitalizeFirstChar</span>: <span class="hljs-function"><span class="hljs-params">(string)</span> -&gt;</span>
+    string.charAt(<span class="hljs-number">0</span>).toUpperCase() + string.slice(<span class="hljs-number">1</span>)</pre></div></div>
             
         </li>
         
@@ -105,31 +115,18 @@ to keep track of where the bundle lives.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-4">&#182;</a>
               </div>
-              <p>Export the object on <code>share</code>, since CoffeeScript.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>share.MailerUtils =
-
-  <span class="hljs-attribute">capitalizeFirstChar</span>: <span class="hljs-function"><span class="hljs-params">(string)</span> -&gt;</span>
-    string.charAt(<span class="hljs-number">0</span>).toUpperCase() + string.slice(<span class="hljs-number">1</span>)</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-5">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-5">&#182;</a>
-              </div>
               <p>Set up a logger to use through <code>MailerUtils.Logger</code>. Verify
 that necessary methods exists on the injected <code>logger</code> and
 fallback if not.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-attribute">setupLogger</span>: <span class="hljs-function"><span class="hljs-params">(logger)</span> -&gt;</span>
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-attribute">setupLogger</span>: <span class="hljs-function"><span class="hljs-params">(logger, opts)</span> -&gt;</span>
+    defaults =
+      <span class="hljs-attribute">suppressInfo</span>: <span class="hljs-literal">false</span>
+
+    opts = _.extend({}, defaults, opts)
+
     res = [<span class="hljs-string">'info'</span>, <span class="hljs-string">'warn'</span>, <span class="hljs-string">'error'</span>].map <span class="hljs-function"><span class="hljs-params">(method)</span> -&gt;</span>
       <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> method <span class="hljs-keyword">in</span> logger
         <span class="hljs-built_in">console</span>.warn <span class="hljs-string">"The injected logger does not support the <span class="hljs-subst">#{method}</span> method."</span>
@@ -140,7 +137,24 @@ fallback if not.</p>
       <span class="hljs-built_in">console</span>.warn <span class="hljs-string">'Falling back to the native logger.'</span>
       <span class="hljs-property">@Logger</span> = <span class="hljs-built_in">console</span>
     <span class="hljs-keyword">else</span>
-      <span class="hljs-property">@Logger</span> = logger
+      <span class="hljs-property">@Logger</span> = logger</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-5">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-5">&#182;</a>
+              </div>
+              <p>Just do a noop for the <code>info</code> method
+if we’re in silent mode.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> opts.suppressInfo <span class="hljs-keyword">is</span> <span class="hljs-literal">true</span>
+      <span class="hljs-property">@Logger</span>.i<span class="hljs-function"><span class="hljs-title">nfo</span> = -&gt;</span> <span class="hljs-comment">#noop</span>
 
   <span class="hljs-attribute">joinUrl</span>: <span class="hljs-function"><span class="hljs-params">(base, path)</span> -&gt;</span></pre></div></div>
             
@@ -177,6 +191,28 @@ fallback if not.</p>
 
     <span class="hljs-keyword">return</span> base + path
 
+  <span class="hljs-attribute">addStylesheets</span>: <span class="hljs-function"><span class="hljs-params">(template, html, juiceOpts = {})</span> -&gt;</span>
+    check template, Match.ObjectIncluding(
+      <span class="hljs-attribute">name</span>: String
+      <span class="hljs-attribute">css</span>: Match.Optional(String)
+      <span class="hljs-attribute">scss</span>: Match.Optional(String)
+    )
+
+    <span class="hljs-keyword">try</span>
+      content = html
+
+      <span class="hljs-keyword">if</span> template.css
+        css = Utils.readFile(template.css)
+        content = juice.inlineContent(content, css, juiceOpts)
+      <span class="hljs-keyword">if</span> template.scss
+        scss = Utils.toCSS(template.scss)
+        content = juice.inlineContent(content, scss, juiceOpts)
+
+      <span class="hljs-keyword">return</span> content
+    <span class="hljs-keyword">catch</span> ex
+      Utils.Logger.error <span class="hljs-string">"Could not add CSS to <span class="hljs-subst">#{template.name}</span>: <span class="hljs-subst">#{ex.message}</span>"</span>, TAG
+      <span class="hljs-keyword">return</span> html
+
   <span class="hljs-attribute">addDoctype</span>: <span class="hljs-function"><span class="hljs-params">(html)</span> -&gt;</span>
     <span class="hljs-string">'&lt;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"&gt;\n'</span> + html
 
@@ -205,8 +241,10 @@ fallback if not.</p>
     file = path.join(ROOT, scss)
 
     <span class="hljs-keyword">try</span>
-      <span class="hljs-keyword">return</span> sass.renderSync(<span class="hljs-attribute">file</span>: file, <span class="hljs-attribute">sourceMap</span>: <span class="hljs-literal">false</span>).css
-    <span class="hljs-keyword">catch</span> ex</pre></div></div>
+      <span class="hljs-keyword">return</span> sass.renderSync(<span class="hljs-attribute">file</span>: file, <span class="hljs-attribute">sourceMap</span>: <span class="hljs-literal">false</span>).css.toString()
+    <span class="hljs-keyword">catch</span> ex
+      <span class="hljs-built_in">console</span>.error <span class="hljs-string">'Sass failed to compile: '</span> + ex.message
+      <span class="hljs-built_in">console</span>.error <span class="hljs-string">"In <span class="hljs-subst">#{ex.file <span class="hljs-keyword">or</span> scss}</span> at line <span class="hljs-subst">#{ex.line}</span>, column <span class="hljs-subst">#{ex.column}</span>"</span></pre></div></div>
             
         </li>
         
@@ -217,13 +255,11 @@ fallback if not.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-9">&#182;</a>
               </div>
-              <p><code>ex</code> is somehow a JSON string.</p>
+              <p>Export the object on <code>share</code>, since CoffeeScript.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      e = JSON.parse(ex)
-      <span class="hljs-built_in">console</span>.error <span class="hljs-string">'Sass failed to compile: '</span> + e.message
-      <span class="hljs-built_in">console</span>.error <span class="hljs-string">'In '</span> + (e.file <span class="hljs-keyword">or</span> scss)</pre></div></div>
+            <div class="content"><div class='highlight'><pre>share.MailerUtils = Utils</pre></div></div>
             
         </li>
         

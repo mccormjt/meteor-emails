@@ -95,12 +95,20 @@ TAG = <span class="hljs-string">'mailer'</span></pre></div></div>
             
             <div class="content"><div class='highlight'><pre>Mailer =
   <span class="hljs-attribute">settings</span>:
+    <span class="hljs-attribute">silent</span>: <span class="hljs-literal">false</span>
     <span class="hljs-attribute">routePrefix</span>: <span class="hljs-string">'emails'</span>
     <span class="hljs-attribute">baseUrl</span>: process.env.ROOT_URL
     <span class="hljs-attribute">testEmail</span>: <span class="hljs-literal">null</span>
     <span class="hljs-attribute">logger</span>: <span class="hljs-built_in">console</span>
     <span class="hljs-attribute">disabled</span>: <span class="hljs-literal">false</span>
     <span class="hljs-attribute">addRoutes</span>: process.env.NODE_ENV <span class="hljs-keyword">is</span> <span class="hljs-string">'development'</span>
+    <span class="hljs-attribute">language</span>: <span class="hljs-string">'html'</span>
+
+    <span class="hljs-attribute">juiceOpts</span>:
+      <span class="hljs-attribute">preserveMediaQueries</span>: <span class="hljs-literal">true</span>
+      <span class="hljs-attribute">removeStyleTags</span>: <span class="hljs-literal">true</span>
+      <span class="hljs-attribute">webResources</span>:
+        <span class="hljs-attribute">images</span>: <span class="hljs-literal">false</span>
 
   <span class="hljs-attribute">config</span>: <span class="hljs-function"><span class="hljs-params">(newSettings)</span> -&gt;</span>
     <span class="hljs-property">@settings</span> = _.extend(<span class="hljs-property">@settings</span>, newSettings)</pre></div></div>
@@ -115,12 +123,10 @@ TAG = <span class="hljs-string">'mailer'</span></pre></div></div>
                 <a class="pilcrow" href="#section-4">&#182;</a>
               </div>
               <h2 id="deps">Deps</h2>
-<p>Use <code>juice</code> for inlining CSS into the templates.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>juice = Npm.<span class="hljs-built_in">require</span> <span class="hljs-string">'juice'</span>
-Utils = share.MailerUtils</pre></div></div>
+            <div class="content"><div class='highlight'><pre>Utils = share.MailerUtils</pre></div></div>
             
         </li>
         
@@ -242,13 +248,13 @@ with data, as well as sending emails from those templates.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-attribute">layout</span>: Match.Optional Object
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-attribute">layout</span>: Match.Optional Match.OneOf(Object, Boolean)
   )
 
   settings = _.extend({}, Mailer.settings, options.settings)
   globalHelpers = _.extend({}, Helpers, Blaze._globalHelpers, options.helpers)
 
-  Utils.setupLogger(settings.logger)
+  Utils.setupLogger(settings.logger, <span class="hljs-attribute">suppressInfo</span>: settings.silent)
 <span class="hljs-function">
   <span class="hljs-title">addHelpers</span> = <span class="hljs-params">(template)</span> -&gt;</span>
     check template.name, String
@@ -295,6 +301,12 @@ can optionally have paths to any SCSS and CSS stylesheets.</p>
       <span class="hljs-attribute">name</span>: String
       <span class="hljs-attribute">scss</span>: Match.Optional String
       <span class="hljs-attribute">css</span>: Match.Optional String
+      <span class="hljs-attribute">layout</span>: Match.Optional Match.OneOf(Boolean,
+        <span class="hljs-attribute">name</span>: String
+        <span class="hljs-attribute">path</span>: String
+        <span class="hljs-attribute">scss</span>: Match.Optional String
+        <span class="hljs-attribute">css</span>: Match.Optional String
+      )
     )</pre></div></div>
             
         </li>
@@ -316,20 +328,13 @@ can optionally have paths to any SCSS and CSS stylesheets.</p>
       Utils.Logger.error <span class="hljs-string">'Could not read template file: '</span>+template.path, TAG
       <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>
 
-    juiceOpts =
-      <span class="hljs-attribute">preserveMediaQueries</span>: <span class="hljs-literal">true</span>
-      <span class="hljs-attribute">removeStyleTags</span>: <span class="hljs-literal">true</span>
-      <span class="hljs-attribute">webResources</span>:
-        <span class="hljs-attribute">images</span>: <span class="hljs-literal">false</span>
-<span class="hljs-function">
-    <span class="hljs-title">addCSS</span> = <span class="hljs-params">(css, html)</span> -&gt;</span>
-      <span class="hljs-keyword">return</span> html <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> css
+    layout = template.layout <span class="hljs-keyword">or</span> options.layout
 
-      <span class="hljs-keyword">try</span>
-        <span class="hljs-keyword">return</span> juice.inlineContent(html, css, juiceOpts)
-      <span class="hljs-keyword">catch</span> ex
-        Utils.Logger.error <span class="hljs-string">'Could not add CSS to '</span>+template.name+<span class="hljs-string">': '</span> + ex.message, TAG
-        <span class="hljs-keyword">return</span> html</pre></div></div>
+    <span class="hljs-keyword">if</span> layout <span class="hljs-keyword">and</span> template.layout <span class="hljs-keyword">isnt</span> <span class="hljs-literal">false</span>
+      layoutContent = Utils.readFile(layout.path)
+
+      SSR.compileTemplate(layout.name, layoutContent, <span class="hljs-attribute">language</span>: settings.language)
+      addHelpers layout</pre></div></div>
             
         </li>
         
@@ -340,12 +345,12 @@ can optionally have paths to any SCSS and CSS stylesheets.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-15">&#182;</a>
               </div>
-              <p>.. then any attached CSS file paths.</p>
-
+              <p>This will place the template function in</p>
+<pre><code>Template.&lt;template.name&gt;
+</code></pre>
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> template.css
-      content = addCSS Utils.readFile(template.css), content</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    tmpl = SSR.compileTemplate(template.name, content, <span class="hljs-attribute">language</span>: settings.language)</pre></div></div>
             
         </li>
         
@@ -355,75 +360,6 @@ can optionally have paths to any SCSS and CSS stylesheets.</p>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-16">&#182;</a>
-              </div>
-              <p>.. and compile and inline any SCSS file paths.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> template.scss
-      content = addCSS Utils.toCSS(template.scss), content
-
-    <span class="hljs-keyword">if</span> options.layout? <span class="hljs-keyword">and</span> template.layout <span class="hljs-keyword">isnt</span> <span class="hljs-literal">false</span>
-      layout = options.layout
-      layoutContent = Utils.readFile(layout.path)
-
-      <span class="hljs-keyword">if</span> layout.css
-        layoutContent = addCSS Utils.readFile(layout.css), layoutContent
-        content = addCSS Utils.readFile(layout.css), content
-
-      <span class="hljs-keyword">if</span> layout.scss
-        layoutContent = addCSS Utils.toCSS(layout.scss), layoutContent
-        content = addCSS Utils.toCSS(layout.scss), content
-
-      <span class="hljs-keyword">if</span> template.css
-        layoutContent = addCSS Utils.readFile(template.css), layoutContent
-
-      <span class="hljs-keyword">if</span> template.scss
-        layoutContent = addCSS Utils.toCSS(template.scss), layoutContent
-
-      SSR.compileTemplate(layout.name, layoutContent)
-      addHelpers layout</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-17">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-17">&#182;</a>
-              </div>
-              <p>This will place the template function in</p>
-<pre><code>Template.&lt;template.name&gt;
-</code></pre>
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    tmpl = SSR.compileTemplate(template.name, content)</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-18">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-18">&#182;</a>
-              </div>
-              <p>Save the layout name on the template object for later.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> layout?
-      tmpl.__layout = layout.name</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-19">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-19">&#182;</a>
               </div>
               <p>Add helpers to template.</p>
 
@@ -436,11 +372,11 @@ can optionally have paths to any SCSS and CSS stylesheets.</p>
         </li>
         
         
-        <li id="section-20">
+        <li id="section-17">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-20">&#182;</a>
+                <a class="pilcrow" href="#section-17">&#182;</a>
               </div>
               <h2 id="render">Render</h2>
 <p>Render a template by name, with optional data context.
@@ -454,7 +390,7 @@ Will compile the template if not done already.</p>
 
     template = _.findWhere(options.templates, <span class="hljs-attribute">name</span>: templateName)
 
-    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> Template[templateName]
+    <span class="hljs-keyword">if</span> !templateName <span class="hljs-keyword">of</span> Template
       compile template
 
     tmpl = Template[templateName]
@@ -463,18 +399,18 @@ Will compile the template if not done already.</p>
       <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> Meteor.Error <span class="hljs-number">500</span>, <span class="hljs-string">'Could not find template: '</span>+templateName
 
     rendered = SSR.render tmpl, data
+    layout = template.layout <span class="hljs-keyword">or</span> options.layout
 
-    <span class="hljs-keyword">if</span> tmpl.__layout?
-      layout = tmpl.__layout</pre></div></div>
+    <span class="hljs-keyword">if</span> layout <span class="hljs-keyword">and</span> template.layout <span class="hljs-keyword">isnt</span> <span class="hljs-literal">false</span></pre></div></div>
             
         </li>
         
         
-        <li id="section-21">
+        <li id="section-18">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-21">&#182;</a>
+                <a class="pilcrow" href="#section-18">&#182;</a>
               </div>
               <p>When applying to a layout, some info from the template
 (like the first preview lines) needs to be applied to the
@@ -492,11 +428,11 @@ layout scope as well.</p>
         </li>
         
         
-        <li id="section-22">
+        <li id="section-19">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-22">&#182;</a>
+                <a class="pilcrow" href="#section-19">&#182;</a>
               </div>
               <p>The <code>extraCSS</code> property on a <code>template</code> is applied to
 the layout in <code>&lt;style&gt;</code> tags. Ideal for media queries.</p>
@@ -515,18 +451,25 @@ the layout in <code>&lt;style&gt;</code> tags. Ideal for media queries.</p>
         <span class="hljs-attribute">preview</span>: preview
       )
 
-      rendered = SSR.render layout, layoutData
+      rendered = SSR.render layout.name, layoutData
+      rendered = Utils.addStylesheets(template, rendered, settings.juiceOpts)
+      rendered = Utils.addStylesheets(layout, rendered, settings.juiceOpts)
 
-    Utils.addDoctype rendered</pre></div></div>
+    <span class="hljs-keyword">else</span>
+      rendered = Utils.addStylesheets(template, rendered, settings.juiceOpts)
+
+    rendered = Utils.addDoctype rendered
+
+    <span class="hljs-keyword">return</span> rendered</pre></div></div>
             
         </li>
         
         
-        <li id="section-23">
+        <li id="section-20">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-23">&#182;</a>
+                <a class="pilcrow" href="#section-20">&#182;</a>
               </div>
               <h2 id="send">Send</h2>
 <p>The main sending-email function. Takes a set of usual email options,
@@ -542,6 +485,7 @@ including the template name and optional data object.</p>
       <span class="hljs-attribute">replyTo</span>: Match.Optional String
       <span class="hljs-attribute">from</span>: Match.Optional String
       <span class="hljs-attribute">data</span>: Match.Optional Object
+      <span class="hljs-attribute">headers</span>: Match.Optional Object
 
     defaults =
       <span class="hljs-attribute">from</span>: settings.from
@@ -554,11 +498,11 @@ including the template name and optional data object.</p>
         </li>
         
         
-        <li id="section-24">
+        <li id="section-21">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-24">&#182;</a>
+                <a class="pilcrow" href="#section-21">&#182;</a>
               </div>
               <p>Render HTML with optional data context.</p>
 
@@ -573,11 +517,11 @@ including the template name and optional data object.</p>
         </li>
         
         
-        <li id="section-25">
+        <li id="section-22">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-25">&#182;</a>
+                <a class="pilcrow" href="#section-22">&#182;</a>
               </div>
               <p>Send email, unless sending is disabled</p>
 
@@ -594,11 +538,11 @@ including the template name and optional data object.</p>
         </li>
         
         
-        <li id="section-26">
+        <li id="section-23">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-26">&#182;</a>
+                <a class="pilcrow" href="#section-23">&#182;</a>
               </div>
               <h2 id="routes">Routes</h2>
 <p>This package supports browser routes, so you can <strong>preview</strong>
@@ -609,11 +553,11 @@ and <strong>send email designs</strong> from the browser.</p>
         </li>
         
         
-        <li id="section-27">
+        <li id="section-24">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-27">&#182;</a>
+                <a class="pilcrow" href="#section-24">&#182;</a>
               </div>
               <p>This function adds the <code>preview</code> route from a <code>template</code> object.
 It will apply the returned data from a <code>data</code> function on the
@@ -633,11 +577,11 @@ provided <code>route</code> prop from the template.</p>
         </li>
         
         
-        <li id="section-28">
+        <li id="section-25">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-28">&#182;</a>
+                <a class="pilcrow" href="#section-25">&#182;</a>
               </div>
               <p>Compile, since we wanna refresh markup and CSS inlining.</p>
 
@@ -661,11 +605,11 @@ provided <code>route</code> prop from the template.</p>
         </li>
         
         
-        <li id="section-29">
+        <li id="section-26">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-29">&#182;</a>
+                <a class="pilcrow" href="#section-26">&#182;</a>
               </div>
               <p>This function adds the <code>send</code> route, for easy sending emails from
 the browser.</p>
@@ -677,11 +621,11 @@ the browser.</p>
         </li>
         
         
-        <li id="section-30">
+        <li id="section-27">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-30">&#182;</a>
+                <a class="pilcrow" href="#section-27">&#182;</a>
               </div>
               <p>Who to send to? It depends: it primarly reads from the <code>?to</code>
 query param, and secondly from the <code>testEmail</code> prop in settings.</p>
@@ -715,11 +659,11 @@ query param, and secondly from the <code>testEmail</code> prop in settings.</p>
         </li>
         
         
-        <li id="section-31">
+        <li id="section-28">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-31">&#182;</a>
+                <a class="pilcrow" href="#section-28">&#182;</a>
               </div>
               <p>If there’s no <code>MAIL_URL</code> environment variable, Meteor cannot send
 the email and echoes it out to <code>STDOUT</code> instead.</p>
@@ -738,11 +682,11 @@ the email and echoes it out to <code>STDOUT</code> instead.</p>
         </li>
         
         
-        <li id="section-32">
+        <li id="section-29">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-32">&#182;</a>
+                <a class="pilcrow" href="#section-29">&#182;</a>
               </div>
               <p>Adds all the routes from a template.</p>
 
@@ -761,25 +705,26 @@ the email and echoes it out to <code>STDOUT</code> instead.</p>
         </li>
         
         
-        <li id="section-33">
+        <li id="section-30">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-33">&#182;</a>
+                <a class="pilcrow" href="#section-30">&#182;</a>
               </div>
               <p>Typically <code>/emails/preview/myEmailTemplate</code>.
 Do some formatting. The <code>path</code> should be the prefix, followed by
 the type (<code>preview</code> or <code>send</code>). So it could look like</p>
 <p>   /emails/preview/sampleTemplate/:param</p>
 <p>Also capitalize the first character in the template name for
-the name of the route.</p>
+the name of the route, so it will look like <code>previewSample</code> for a
+template named <code>sample</code>.</p>
 
             </div>
             
             <div class="content"><div class='highlight'><pre>      path = <span class="hljs-string">"<span class="hljs-subst">#{settings.routePrefix}</span>/<span class="hljs-subst">#{type}</span>"</span> + template.route.path
       name = Utils.capitalizeFirstChar(template.name)
-      routeName = <span class="hljs-string">"<span class="hljs-subst">#{type}</span><span class="hljs-subst">#{name}</span>Email"</span>
-      
+      routeName = <span class="hljs-string">"<span class="hljs-subst">#{type}</span><span class="hljs-subst">#{name}</span>"</span>
+
       Utils.Logger.info <span class="hljs-string">"Add route: [<span class="hljs-subst">#{routeName}</span>] at path /"</span> + path, TAG
 
       Router.route routeName,
@@ -789,11 +734,11 @@ the name of the route.</p>
         </li>
         
         
-        <li id="section-34">
+        <li id="section-31">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-34">&#182;</a>
+                <a class="pilcrow" href="#section-31">&#182;</a>
               </div>
               <p>An action still need the route context, but call it
 with our <code>template</code> as the sole parameter.</p>
@@ -805,11 +750,11 @@ with our <code>template</code> as the sole parameter.</p>
         </li>
         
         
-        <li id="section-35">
+        <li id="section-32">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-35">&#182;</a>
+                <a class="pilcrow" href="#section-32">&#182;</a>
               </div>
               <h2 id="init">Init</h2>
 <p>Init routine. Precompiles all templates provided and
@@ -827,11 +772,11 @@ setup routes if provided and if in dev mode.</p>
         </li>
         
         
-        <li id="section-36">
+        <li id="section-33">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-36">&#182;</a>
+                <a class="pilcrow" href="#section-33">&#182;</a>
               </div>
               <p>Only add these routes when in dev mode or if forced.</p>
 
@@ -845,11 +790,11 @@ setup routes if provided and if in dev mode.</p>
         </li>
         
         
-        <li id="section-37">
+        <li id="section-34">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-37">&#182;</a>
+                <a class="pilcrow" href="#section-34">&#182;</a>
               </div>
               <h2 id="export">Export</h2>
 <p>The “interface”.</p>
@@ -863,11 +808,11 @@ setup routes if provided and if in dev mode.</p>
         </li>
         
         
-        <li id="section-38">
+        <li id="section-35">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-38">&#182;</a>
+                <a class="pilcrow" href="#section-35">&#182;</a>
               </div>
               <p>Exported symbol</p>
 <p>I wanna export a singleton symbol with an ‘init’
