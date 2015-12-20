@@ -20,20 +20,21 @@ TAG = 'mailer-utils'
 isDevEnv = ->
   process.env.NODE_ENV == 'development'
 
+deployedMeteorBundleDir = ->
+  meteor_root = fs.realpathSync( process.cwd() + '/../' )
+  fs.realpathSync( meteor_root + '/../' )
+
 developmentPrivateDir = ->
-  return unless isDevEnv()
   # In development, using pwd is fine. Remove the .meteor/foo/bar stuff though.
   meteor_root = process.cwd().replace(/(\.meteor.*)/g, '')
   path.join(meteor_root, 'private')
 
 productionPrivateDir = ->
-  return if isDevEnv()
-  meteor_root = fs.realpathSync( process.cwd() + '/../' )
-  fs.realpathSync( meteor_root + '/../' )
+  bundle_path = process.env.BUNDLE_PATH || process.env.APP_DIR || deployedMeteorBundleDir()
+  path.join(bundle_path, 'programs', 'server', 'assets', 'app')
 
-privateDir = process.env.BUNDLE_PATH || process.env.APP_DIR || productionPrivateDir()
-ROOT       = privateDir && path.join(privateDir, 'programs', 'server', 'assets', 'app')
-ROOT     ||= developmentPrivateDir()
+# ROOT is private directory
+ROOT = if isDevEnv() then developmentPrivateDir() else productionPrivateDir()
 
 
 Utils =
